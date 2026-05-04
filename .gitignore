@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+
+# Model weights (large binary files - use git-lfs or download separately)
+models/scrfd/*.onnx
+models/gdino/*.pth
+models/retinaface/
+models/segformer/
+
+# Output
+output/
+tmp/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.log
