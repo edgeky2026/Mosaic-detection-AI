@@ -82,7 +82,7 @@ TESTSET_ROOT=/path/to/testset_2603 python src/eval_genital.py
 
 ## モデル準備
 
-モデル重みは `.gitignore` 対象のため別途配置が必要：
+モデル重みはリポジトリに含まれています（`*.pth` は Git LFS 管理）。
 
 ```bash
 # SCRFD (顔検出)
@@ -90,30 +90,32 @@ models/scrfd/scrfd_2.5g.onnx   # InsightFace SCRFD-2.5GF
 models/scrfd/scrfd_34g.onnx    # InsightFace SCRFD-34GF
 
 # GroundingDino (性器検出) — v3FT best (Epoch 7)
-models/gdino/v3ft_best.pth     # v3FT (264K images, lr=1e-6, mAP=0.4927)
+models/gdino/v3ft_best.pth     # v3FT (264K images, lr=1e-6, mAP=0.4927) → Git LFS
 models/gdino/cfg_odvg.py       # ODVG設定ファイル
 ```
+
+> 大容量ファイル（`*.pth`）は Git LFS で管理されています。初回 clone 時は `git lfs pull` を実行してください。
 
 ## 精度指標 (2026-05-15)
 
 ### 顔パイプライン (testset_2603, n=2837)
 
-| Config | Coverage | Precision | IoU |
-|--------|----------|-----------|-----|
-| 施策D hybrid (conf=0.3) | 0.6491 | 0.8024 | 0.5792 |
-| Production (conf=0.5) | 0.5482 | 0.8463 | 0.5130 |
+| Config | Coverage (Recall) | Precision | F1 | IoU |
+|--------|:-----------------:|:---------:|:--:|:---:|
+| 施策D hybrid (conf=0.3) | 0.6491 | 0.8024 | **0.718** | 0.5792 |
+| Production (conf=0.5) | 0.5482 | 0.8463 | **0.665** | 0.5130 |
 
 ### 性器パイプライン (testset_2603, n=2353)
 
 **v3FT Epoch 7 best** — box_threshold=0.18, text_threshold=0.15
 
-| サブセット | n_eval | Coverage | Precision | IoU |
-|:---:|:---:|:---:|:---:|:---:|
-| normal | 835 | 0.711 | **0.884** | 0.633 |
-| gay | 238 | 0.628 | **0.672** | 0.520 |
-| hukusu | 662 | 0.401 | 0.409 | 0.281 |
-| rez | 618 | 0.493 | **0.595** | 0.439 |
-| **全体** | **2353** | **0.558** | **0.653** | **0.472** |
+| サブセット | n_eval | Coverage (Recall) | Precision | F1 | IoU |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| normal | 835 | 0.711 | **0.884** | **0.788** | 0.633 |
+| gay | 238 | 0.628 | **0.672** | **0.649** | 0.520 |
+| hukusu | 662 | 0.401 | 0.409 | 0.405 | 0.281 |
+| rez | 618 | 0.493 | **0.595** | **0.539** | 0.439 |
+| **全体** | **2353** | **0.558** | **0.653** | **0.602** | **0.472** |
 
 > 施策H（P=0.635）比で **Precision +0.018** の改善、目標 P ≥ 0.65 を達成。
 

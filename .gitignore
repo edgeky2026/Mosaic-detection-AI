@@ -7,11 +7,8 @@ __pycache__/
 dist/
 build/
 
-# Model weights (large binary files - use git-lfs or download separately)
-models/scrfd/*.onnx
-models/gdino/*.pth
-models/retinaface/
-models/segformer/
+# Model weights — tracked by Git (*.pth via Git LFS)
+# Remove all model exclusions so weights are committed
 
 # Output
 output/
