@@ -1,3 +1,7 @@
+import os
+
+SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_DIR = os.path.dirname(SRC_DIR)
 """施策C: SegFormer二次確認レイヤー
 
 SCRFD が顔を検出した ROI に対して Fine-tuned SegFormer を適用し、
@@ -14,7 +18,7 @@ from typing import Optional, Tuple
 import numpy as np
 
 # Segformer vendor パスを追加
-_SEGFORMER_PROJ = os.environ.get("SEGFORMER_PROJ", "/home/pan/プロジェクト/02_GitHub/Segformer")
+_SEGFORMER_PROJ = os.path.join(REPO_DIR, "vendor", "segformer")
 if _SEGFORMER_PROJ not in sys.path:
     sys.path.insert(0, _SEGFORMER_PROJ)
 

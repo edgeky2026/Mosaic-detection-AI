@@ -1,3 +1,7 @@
+import os
+
+SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_DIR = os.path.dirname(SRC_DIR)
 """
 モザイク漏れ検知パイプライン — testset_2603 評価スクリプト
 
@@ -34,12 +38,12 @@ SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SRC_DIR)
 
 # BiSeNet vendor (SCRFD / ByteTrack)
-SCRFD_VENDOR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vendor")
+SCRFD_VENDOR = VENDOR_DIR
 if SCRFD_VENDOR not in sys.path:
     sys.path.insert(0, SCRFD_VENDOR)
 
 # Segformer プロジェクトルート (施策C で使用)
-SEGFORMER_PROJ = os.environ.get("SEGFORMER_PROJ", "/home/pan/プロジェクト/02_GitHub/Segformer")
+SEGFORMER_PROJ = os.path.join(REPO_DIR, "vendor", "segformer")
 if SEGFORMER_PROJ not in sys.path:
     sys.path.insert(0, SEGFORMER_PROJ)
 

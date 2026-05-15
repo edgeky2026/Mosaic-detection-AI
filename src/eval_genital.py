@@ -23,6 +23,7 @@ from typing import Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
+from dino_checkpoint_utils import get_default_dino_checkpoint, resolve_dino_checkpoint
 
 # --- パス設定 ---
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -52,16 +53,29 @@ TESTSETS = {
 GENITAL_LABELS = {"vagina_wide", "penis", "anus_insertion"}
 
 # デフォルトチェックポイント
-DEFAULT_DINO_CHECKPOINT = os.path.join(
-    MODELS_DIR, "gdino", "v3ft_best.pth"
-)
+DEFAULT_DINO_CHECKPOINT = get_default_dino_checkpoint()
 DEFAULT_DINO_CONFIG = os.path.join(MODELS_DIR, "gdino", "cfg_odvg.py")
 GENITAL_TEXT_PROMPT = "vagina . penis . anus ."
-BOX_THRESHOLD = 0.18
+BOX_THRESHOLD = 0.18    # 本番パイプライン設定値（施策H: Epoch 3）
 TEXT_THRESHOLD = 0.15
 MIN_BOX_AREA_RATIO = 0.001
 MAX_BOX_AREA_RATIO = 0.30
 MAX_ASPECT_RATIO = 4.0      # 施策J: 極端に細長いBBoxを体部位FPとして棄却
+
+
+def aggregate_weighted_subset_metrics(subset_results: List[Dict]) -> Dict[str, float]:
+    """評価フレーム数で重み付けした全体平均を返す。"""
+    total_eval = sum(result["n_evaluated"] for result in subset_results)
+    if total_eval == 0:
+        return {"coverage": 0.0, "precision": 0.0, "iou": 0.0}
+
+    weighted = {}
+    for key in ("coverage", "precision", "iou"):
+        weighted[key] = sum(
+            result["metrics"][key] * result["n_evaluated"]
+            for result in subset_results
+        ) / total_eval
+    return weighted
 
 
 # ============================================================
@@ -136,7 +150,7 @@ def load_grounding_dino(dino_config: str, dino_checkpoint: str):
     except ImportError as e:
         raise ImportError(
             f"GroundingDino が見つかりません: {e}\n"
-            f"  cd {GSAM2_DIR} && pip install --no-build-isolation -e grounding_dino"
+            f"  cd {VENDOR_DIR} && pip install --no-build-isolation -e grounding_dino"
         )
     import torch
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -289,7 +303,7 @@ def evaluate_subset(
 
 def main():
     parser = argparse.ArgumentParser(description="性器モザイク検知 評価スクリプト")
-    parser.add_argument("--dino-checkpoint", default=DEFAULT_DINO_CHECKPOINT)
+    parser.add_argument("--dino-checkpoint", default=get_default_dino_checkpoint())
     parser.add_argument("--dino-config", default=DEFAULT_DINO_CONFIG)
     parser.add_argument("--box-threshold", type=float, default=BOX_THRESHOLD)
     parser.add_argument("--text-threshold", type=float, default=TEXT_THRESHOLD)
@@ -298,7 +312,9 @@ def main():
         default="all"
     )
     parser.add_argument(
-        "--genital-only", action="store_true",
+        "--genital-only",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help="性器GT を持つフレームのみ評価（デフォルト: ON）"
     )
     parser.add_argument("--output", default=None, help="結果JSON出力先")
@@ -312,6 +328,8 @@ def main():
     print(f"  box_thr   : {args.box_threshold}")
     print(f"  text_thr  : {args.text_threshold}")
     print(f"  subset    : {args.subset}")
+
+    args.dino_checkpoint = resolve_dino_checkpoint(args.dino_checkpoint)
 
     if not os.path.isfile(args.dino_checkpoint):
         print(f"\n[ERROR] checkpoint not found: {args.dino_checkpoint}")
@@ -340,7 +358,7 @@ def main():
         t1 = time.time()
         subset_result = evaluate_subset(
             subset_name, subset_dir, model, device,
-            genital_only=True,  # 性器GTを持つフレームのみ評価
+            genital_only=args.genital_only,
             box_threshold=args.box_threshold,
             text_threshold=args.text_threshold,
         )
@@ -357,17 +375,8 @@ def main():
 
         results[subset_name] = subset_result
 
-    # 全サブセット — 評価フレーム数で重み付け平均
-    total_eval = sum(r["n_evaluated"] for r in results.values())
-    if total_eval > 0:
-        overall = {}
-        for key in ("coverage", "precision", "iou"):
-            overall[key] = sum(
-                r["metrics"][key] * r["n_evaluated"]
-                for r in results.values()
-            ) / total_eval
-    else:
-        overall = {"coverage": 0.0, "precision": 0.0, "iou": 0.0}
+    # 全サブセット合算
+    overall = aggregate_weighted_subset_metrics(list(results.values()))
 
     total_frames = sum(r["n_frames"] for r in results.values())
     total_gt = sum(r["n_gt_frames"] for r in results.values())

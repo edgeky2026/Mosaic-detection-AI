@@ -32,18 +32,17 @@ from tqdm import tqdm
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SRC_DIR)
 
-SCRFD_VENDOR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vendor")
+SCRFD_VENDOR = VENDOR_DIR
 if SCRFD_VENDOR not in sys.path:
     sys.path.insert(0, SCRFD_VENDOR)
 
 TESTSET_ROOT = Path(os.environ.get("TESTSET_ROOT", "/home/pan/プロジェクト/10_finetun-dataset-3/testset_2603"))
 TESTSETS = ["normal", "gay", "hukusu", "rez"]
 
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRFD_25G_PATH = os.path.join(_REPO_ROOT, "models", "scrfd", "scrfd_2.5g.onnx")
-SCRFD_34G_PATH = os.path.join(_REPO_ROOT, "models", "scrfd", "scrfd_34g.onnx")
-YUNET_PATH     = os.environ.get("YUNET_PATH", "models/yunet_face.onnx")
-YOLO_FACE_PATH = os.environ.get("YOLO_FACE_PATH", "models/yolo11n-face.pt")
+SCRFD_25G_PATH = os.path.join(MODELS_DIR, "scrfd", "scrfd_2.5g.onnx")
+SCRFD_34G_PATH = os.path.join(MODELS_DIR, "scrfd", "scrfd_34g.onnx")
+YUNET_PATH     = os.path.join(MODELS_DIR, "yunet", "yunet_face.onnx")
+YOLO_FACE_PATH = os.path.join(MODELS_DIR, "yolo11n-face.pt")
 
 SCRFD_CONF = 0.15
 SCRFD_NMS  = 0.45

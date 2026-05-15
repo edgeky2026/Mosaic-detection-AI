@@ -1,35 +1,64 @@
-"""GroundingDINO checkpoint resolution helpers.
+"""GroundingDINO checkpoint resolution helpers."""
 
-GitHub版: models/gdino/ 配下の v3ft_best.pth を優先的に解決する。
-"""
-
-import os
 from pathlib import Path
+
 
 SRC_DIR = Path(__file__).resolve().parent
 REPO_DIR = SRC_DIR.parent
-MODELS_DIR = REPO_DIR / "models" / "gdino"
+GSAM2_DIR = REPO_DIR / "genital-reference" / "LV_Grounded-SAM-2"
+LOCAL_TRAIN_DIR = REPO_DIR / "genital-reference" / "LV_Open-GroundingDino" / "local_train"
 
-# 優先順位リスト（上から順に探索）
-_CANDIDATES = [
-    MODELS_DIR / "v3ft_best.pth",
-    MODELS_DIR / "dino_local_ft_ep4_best.pth",
-]
+LEGACY_GDRIVE_BEST = GSAM2_DIR / "gdino_checkpoints" / "dino_gdrive_ft_best.pth"
+LEGACY_GCP_FALLBACK = GSAM2_DIR / "gdino_checkpoints" / "dino_260430_checkpoint0002.pth"
+
+
+def _latest_match(pattern: str) -> str | None:
+    matches = sorted(
+        (path for path in LOCAL_TRAIN_DIR.glob(pattern) if path.is_file()),
+        reverse=True,
+    )
+    if not matches:
+        return None
+    return str(matches[0])
 
 
 def get_default_dino_checkpoint() -> str:
-    """利用可能な最良の GroundingDINO checkpoint パスを返す。"""
-    for candidate in _CANDIDATES:
-        if candidate.is_file():
-            return str(candidate)
-    # 全候補が見つからない場合は v3ft_best.pth パスを返す（ロード時にエラーで報告される）
-    return str(_CANDIDATES[0])
+    candidates = [
+        _latest_match("output_gdrive_ft_v3_*/checkpoint_best_regular.pth"),
+        _latest_match("output_gdrive_ft_v3_*/checkpoint000*.pth"),
+        str(LEGACY_GDRIVE_BEST),
+        str(LEGACY_GCP_FALLBACK),
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return candidate
+    return str(LEGACY_GCP_FALLBACK)
 
 
 def resolve_dino_checkpoint(checkpoint_path: str | None) -> str:
-    """明示パスがあればそれを優先、なければ get_default_dino_checkpoint() を返す。"""
+    checked = []
+    seen = set()
+    candidates = []
+
     if checkpoint_path:
-        expanded = str(Path(checkpoint_path).expanduser())
-        if Path(expanded).is_file():
-            return expanded
-    return get_default_dino_checkpoint()
+        candidates.append(str(Path(checkpoint_path).expanduser()))
+
+    candidates.extend(
+        [
+            get_default_dino_checkpoint(),
+            str(LEGACY_GDRIVE_BEST),
+            str(LEGACY_GCP_FALLBACK),
+        ]
+    )
+
+    for candidate in candidates:
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        checked.append(candidate)
+        if Path(candidate).is_file():
+            return candidate
+
+    raise FileNotFoundError(
+        "GroundingDino checkpoint not found. Checked: " + ", ".join(checked)
+    )

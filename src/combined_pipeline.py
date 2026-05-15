@@ -42,6 +42,7 @@ if os.path.isdir(_gdino_lib) and VENDOR_DIR not in sys.path:
     sys.path.insert(0, VENDOR_DIR)
 
 from config import Config
+from dino_checkpoint_utils import get_default_dino_checkpoint
 
 # ============================================================
 # 統合判定ロジック
@@ -102,11 +103,11 @@ def run_combined_pipeline(
     cfg: Config,
     dino_config: str,
     dino_checkpoint: str,
+    box_threshold: float = 0.18,
+    text_threshold: float = 0.15,
     output_path: Optional[str] = None,
     run_face: bool = True,
     run_genital: bool = True,
-    box_threshold: float = 0.18,
-    text_threshold: float = 0.15,
 ) -> dict:
     """
     顔＋性器 統合モザイク漏れ検知を実行する。
@@ -116,11 +117,11 @@ def run_combined_pipeline(
         cfg              : Config オブジェクト
         dino_config      : GroundingDino 設定ファイルのパス
         dino_checkpoint  : Fine-tuned GroundingDino チェックポイントのパス
+        box_threshold    : GroundingDino の box threshold
+        text_threshold   : GroundingDino の text threshold
         output_path      : 結果JSON の出力先（None の場合は出力しない）
         run_face         : 顔パイプラインを実行するか
         run_genital      : 性器パイプラインを実行するか
-        box_threshold    : GroundingDino の box threshold
-        text_threshold   : GroundingDino の text threshold
 
     Returns:
         統合判定結果の dict
@@ -225,19 +226,13 @@ def main():
     parser.add_argument("--output", default=None,   help="結果JSONの出力先")
     parser.add_argument(
         "--dino-checkpoint",
-        default=os.path.join(MODELS_DIR, "gdino", "v3ft_best.pth"),
+        default=get_default_dino_checkpoint(),
         help="Fine-tuned GroundingDino チェックポイントのパス",
     )
     parser.add_argument(
         "--dino-config",
         default=os.path.join(MODELS_DIR, "gdino", "cfg_odvg.py"),
         help="GroundingDino config ファイルのパス",
-    )
-    parser.add_argument(
-        "--face-only",    action="store_true", help="顔パイプラインのみ実行"
-    )
-    parser.add_argument(
-        "--genital-only", action="store_true", help="性器パイプラインのみ実行"
     )
     parser.add_argument(
         "--box-threshold",
@@ -251,6 +246,12 @@ def main():
         default=0.15,
         help="GroundingDino の text threshold",
     )
+    parser.add_argument(
+        "--face-only",    action="store_true", help="顔パイプラインのみ実行"
+    )
+    parser.add_argument(
+        "--genital-only", action="store_true", help="性器パイプラインのみ実行"
+    )
     args = parser.parse_args()
 
     cfg = Config()
@@ -262,11 +263,11 @@ def main():
         cfg              = cfg,
         dino_config      = args.dino_config,
         dino_checkpoint  = args.dino_checkpoint,
+        box_threshold    = args.box_threshold,
+        text_threshold   = args.text_threshold,
         output_path      = args.output,
         run_face         = run_face,
         run_genital      = run_genital,
-        box_threshold    = args.box_threshold,
-        text_threshold   = args.text_threshold,
     )
 
     print(f"\n統合判定: {result['verdict']}")

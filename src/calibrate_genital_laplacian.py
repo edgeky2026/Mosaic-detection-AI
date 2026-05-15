@@ -32,14 +32,15 @@ import numpy as np
 # パス設定
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = os.path.dirname(SRC_DIR)
-GSAM2_DIR = os.path.join(REPO_DIR, "genital-reference", "LV_Grounded-SAM-2")
+MODELS_DIR = os.path.join(REPO_DIR, "models")
+VENDOR_DIR = os.path.join(REPO_DIR, "vendor")
 
 sys.path.insert(0, SRC_DIR)
-_gdino_lib = os.path.join(GSAM2_DIR, "grounding_dino")
+_gdino_lib = os.path.join(VENDOR_DIR, "grounding_dino")
 if os.path.isdir(_gdino_lib) and _gdino_lib not in sys.path:
     sys.path.insert(0, _gdino_lib)
-if GSAM2_DIR not in sys.path:
-    sys.path.insert(0, GSAM2_DIR)
+if VENDOR_DIR not in sys.path:
+    sys.path.insert(0, VENDOR_DIR)
 
 from mosaic_analyzer import analyze_roi
 
@@ -52,7 +53,7 @@ FACE_LABEL = "face"
 DEFAULT_DINO_CHECKPOINT = os.path.join(
     GSAM2_DIR, "gdino_checkpoints", "dino_local_ft_ep4_best.pth"
 )
-DEFAULT_DINO_CONFIG = os.path.join(GSAM2_DIR, "cfg_odvg.py")
+DEFAULT_DINO_CONFIG = os.path.join(MODELS_DIR, "gdino", "cfg_odvg.py")
 GENITAL_TEXT_PROMPT = "vagina . penis ."
 BOX_THRESHOLD = 0.20
 TEXT_THRESHOLD = 0.15

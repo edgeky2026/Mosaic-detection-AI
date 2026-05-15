@@ -32,8 +32,11 @@ VENDOR_DIR = os.path.join(REPO_DIR, "vendor")
 sys.path.insert(0, SRC_DIR)
 
 # 既存資産のパスを追加
+# vendor/ ディレクトリ (scrfd, bytetrack)
+
 if VENDOR_DIR not in sys.path:
     sys.path.insert(0, VENDOR_DIR)
+
 
 from config import Config
 from mosaic_analyzer import analyze_roi
@@ -144,7 +147,7 @@ def detect_faces_hybrid(
             return dets_25g  # 34g が 2 人目を落としたケースを救済
         return dets_34g  # 単顔: 34g が高精度
     if len(dets_34g) >= 2:
-        return detect_faces_scrfd(detector_25g, threshold_25g, bgr_image, cfg)
+        return detect_faces_scrfd(detector_25g, threshold_25g, bgr_image, cfg)  # 複数顔: 2.5g
     return detect_faces_scrfd(detector_25g, threshold_25g, bgr_image, cfg)  # 34g未検出: 2.5gで救済
 
 

@@ -43,10 +43,11 @@ sys.path.insert(0, SRC_DIR)
 
 # GroundingDino ライブラリのパスを追加
 _gdino_lib = os.path.join(VENDOR_DIR, "grounding_dino")
-if os.path.isdir(_gdino_lib) and VENDOR_DIR not in sys.path:
+if os.path.isdir(_gdino_lib) and _gdino_lib not in sys.path:
     sys.path.insert(0, VENDOR_DIR)
 
 from config import Config
+from dino_checkpoint_utils import get_default_dino_checkpoint, resolve_dino_checkpoint
 from mosaic_analyzer import analyze_roi
 from scorer import (
     FaceResult,
@@ -60,21 +61,18 @@ from scorer import (
 )
 
 # --- デフォルトチェックポイントパス ---
-# v3FT best checkpoint (Epoch 7, mAP@[.5:.95]=0.4927, 246K train images)
-DEFAULT_DINO_CHECKPOINT = os.path.join(
-    MODELS_DIR, "gdino", "v3ft_best.pth"
-)
+# 既定では最新の v3FT best を優先し、存在しない場合のみ旧チェックポイントへフォールバックする。
+DEFAULT_DINO_CHECKPOINT = get_default_dino_checkpoint()
 DEFAULT_DINO_CONFIG = os.path.join(MODELS_DIR, "gdino", "cfg_odvg.py")
 GENITAL_TEXT_PROMPT = "vagina . penis . anus ."
-BOX_THRESHOLD = 0.18   # v3FTモデル最適値（testset_2603: P=0.653, C=0.558）
-TEXT_THRESHOLD = 0.15  # FTモデルでは実質無効だが互換性のため維持
+BOX_THRESHOLD = 0.18   # 施策Hモデル全体最適値（IoU=0.493, Coverage=0.647, hukusu回復）
+TEXT_THRESHOLD = 0.15  # FTモデルでは無効だが互換性のため維持
 
 # 性器ROIの最小サイズ（フレーム面積に対する比率）
 # 0.001 = フレーム面積の 0.1% 以上の bbox のみ対象
 MIN_BOX_AREA_RATIO = 0.001
-MAX_BOX_AREA_RATIO = 0.30   # フレーム面積の 30% 超は体部位の巨大FPとして棄却
+MAX_BOX_AREA_RATIO = 0.30   # フレーム面積の 30% 超は体部位の巨大誤検出として棄却
 MAX_ASPECT_RATIO = 4.0      # 施策J: max(w/h, h/w) > 4.0 の極端に細長い検出を棄却
-
 
 def get_video_duration_minutes(video_path: str) -> float:
     """動画の長さを分で返す"""
@@ -127,7 +125,7 @@ def load_grounding_dino(dino_config: str, dino_checkpoint: str):
     if not os.path.isfile(dino_checkpoint):
         raise FileNotFoundError(
             f"GroundingDino checkpoint not found: {dino_checkpoint}\n"
-            "  --dino-checkpoint フラグで checkpoint0007.pth のパスを指定してください。"
+            "  --dino-checkpoint フラグで利用可能な checkpoint のパスを指定してください。"
         )
 
     device = "cuda" if _cuda_available() else "cpu"
@@ -262,9 +260,9 @@ def run_pipeline(
     cfg: Config,
     dino_config: str,
     dino_checkpoint: str,
-    output_path: Optional[str] = None,
     box_threshold: float = BOX_THRESHOLD,
     text_threshold: float = TEXT_THRESHOLD,
+    output_path: Optional[str] = None,
 ) -> dict:
     """
     性器モザイク漏れ検知メインパイプライン
@@ -275,14 +273,13 @@ def run_pipeline(
         dino_config: GroundingDino 設定ファイルのパス
         dino_checkpoint: Fine-tuned GroundingDino チェックポイントのパス
         output_path: 結果JSONの出力先（None の場合は出力しない）
-        box_threshold: GroundingDino の box threshold
-        text_threshold: GroundingDino の text threshold
 
     Returns:
         判定結果のdict（顔パイプラインと同フォーマット + check_type フィールド）
     """
     start_time = time.time()
     video_path = os.path.abspath(video_path)
+    dino_checkpoint = resolve_dino_checkpoint(dino_checkpoint)
 
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"Video not found: {video_path}")
@@ -454,8 +451,8 @@ def main():
     parser.add_argument("--output", default=None, help="結果JSONの出力先（省略時は保存しない）")
     parser.add_argument(
         "--dino-checkpoint",
-        default=DEFAULT_DINO_CHECKPOINT,
-        help=f"GroundingDino チェックポイントパス（デフォルト: {DEFAULT_DINO_CHECKPOINT}）",
+        default=get_default_dino_checkpoint(),
+        help="GroundingDino チェックポイントパス（デフォルト: 最新 v3FT best を自動選択）",
     )
     parser.add_argument(
         "--dino-config",
@@ -500,8 +497,8 @@ def main():
             cfg=cfg,
             dino_config=args.dino_config,
             dino_checkpoint=args.dino_checkpoint,
-            output_path=args.output,
             box_threshold=args.box_threshold,
+            output_path=args.output,
         )
 
         # 終了コード: 0=PASS, 1=REVIEW, 2=FAIL

@@ -1,8 +1,8 @@
 """モザイク漏れ検知 AI — 設定値"""
 
-import os
 from dataclasses import dataclass, field
 from typing import Tuple
+import os
 
 # リポジトリルート (src/ の親ディレクトリ)
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,9 +23,7 @@ class Config:
 
     # --- SCRFD 顔検出 ---
     scrfd_model_path: str = os.path.join(_MODELS_DIR, "scrfd", "scrfd_2.5g.onnx")
-    # モザイク検知用（セグメンテーション用0.15より高め）
-    # 本番デプロイ（①アップロード時検知）では 0.50 に変更 → Precision=0.846, Coverage=0.548
-    scrfd_conf_th: float = 0.3
+    scrfd_conf_th: float = 0.50      # 本番用 FP極小化（設計書0502§4.2: アップロード時①は0.5以上）
     scrfd_nms_th: float = 0.65
     scrfd_max_det: int = 15
     scrfd_providers: Tuple[str, ...] = ("CUDAExecutionProvider", "CPUExecutionProvider")
@@ -93,7 +91,9 @@ class Config:
     # 施策C: SegFormer二次確認レイヤー
     # =========================================================
     use_segformer_confirmation: bool = False
-    segformer_model_path: str = os.path.join(_MODELS_DIR, "segformer", "segformer_v2_best")
+    segformer_model_path: str = (
+        os.path.join(_MODELS_DIR, "segformer", "segformer_v2_best")
+    )
     # ファインチューニング済みモデルのface classes (CelebAMask-HQ class 1-12)
     segformer_face_classes: Tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
     # ROI内の顔ピクセル割合がこれ以下 → GREEN降格（SCRFD誤検出とみなす）
@@ -102,9 +102,9 @@ class Config:
     # =========================================================
     # 施策D: SCRFD-34g ハイブリッド検出
     # =========================================================
-    # 2026-05-04: デフォルト有効化。IoU 0.529→0.579 (+9.5%) の改善。
-    # 複数顔フレームでは 2.5g にフォールバックし Coverage 低下を回避。
-    use_scrfd34g_hybrid: bool = True
-    scrfd_34g_model_path: str = os.path.join(_MODELS_DIR, "scrfd", "scrfd_34g.onnx")
+    use_scrfd34g_hybrid: bool = True   # 施策D採用済み: Precision+5.3%, IoU+2.3%
+    scrfd_34g_model_path: str = (
+        os.path.join(_MODELS_DIR, "scrfd", "scrfd_34g.onnx")
+    )
 
 

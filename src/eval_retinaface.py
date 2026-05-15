@@ -36,7 +36,7 @@ RETINAFACE_DIR = VENDOR_DIR + "/Pytorch_Retinaface"
 if RETINAFACE_DIR not in sys.path:
     sys.path.insert(0, RETINAFACE_DIR)
 
-SCRFD_VENDOR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vendor")
+SCRFD_VENDOR = VENDOR_DIR
 if SCRFD_VENDOR not in sys.path:
     sys.path.insert(0, SCRFD_VENDOR)
 
@@ -45,12 +45,13 @@ TESTSET_ROOT = Path(os.environ.get("TESTSET_ROOT", "/home/pan/プロジェクト
 TESTSETS = ["normal", "gay", "hukusu", "rez"]
 
 # モデルパス
-_REPO_ROOT_EVAL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RETINAFACE_WEIGHTS = os.environ.get(
-    "RETINAFACE_WEIGHTS", "models/retinaface/detection_Resnet50_Final.pth"
+RETINAFACE_WEIGHTS = (
+    "/home/pan/プロジェクト1/15.AIエージェント/SadTalker/gfpgan/weights/detection_Resnet50_Final.pth"
 )
-SCRFD_25G_PATH = os.path.join(_REPO_ROOT_EVAL, "models", "scrfd", "scrfd_2.5g.onnx")
-SCRFD_34G_PATH = os.path.join(_REPO_ROOT_EVAL, "models", "scrfd", "scrfd_34g.onnx")
+SCRFD_25G_PATH = os.path.join(MODELS_DIR, "scrfd", "scrfd_2.5g.onnx")
+SCRFD_34G_PATH = (
+    os.path.join(MODELS_DIR, "scrfd", "scrfd_34g.onnx")
+)
 
 SCRFD_CONF = 0.15  # 評価用（論文比較）
 SCRFD_NMS  = 0.45

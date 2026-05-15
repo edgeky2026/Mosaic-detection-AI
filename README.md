@@ -45,12 +45,12 @@ Mosaic-detection/
 │   ├── scrfd/              # SCRFD 顔検出 (ONNX)
 │   ├── yolox/tracker/      # ByteTrack
 │   └── grounding_dino/     # GroundingDino
-├── models/                 # モデル重み (.gitignore対象)
+├── models/                 # モデル重み (含む; *.pth は Git LFS 管理)
 │   ├── scrfd/
-│   │   ├── scrfd_2.5g.onnx    # SCRFD-2.5GF (3.3MB)
-│   │   └── scrfd_34g.onnx     # SCRFD-34GF (39MB)
+│   │   ├── scrfd_2.5g.onnx    # SCRFD-2.5GF (3.2MB)
+│   │   └── scrfd_34g.onnx     # SCRFD-34GF (38MB)
 │   └── gdino/
-│       ├── v3ft_best.pth       # v3FT Epoch 7 best (1.2GB)
+│       ├── v3ft_best.pth       # v3FT Epoch 7 best (1.2GB, LFS)
 │       └── cfg_odvg.py
 └── requirements.txt
 ```
