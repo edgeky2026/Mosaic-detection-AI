@@ -105,6 +105,8 @@ def run_combined_pipeline(
     output_path: Optional[str] = None,
     run_face: bool = True,
     run_genital: bool = True,
+    box_threshold: float = 0.18,
+    text_threshold: float = 0.15,
 ) -> dict:
     """
     顔＋性器 統合モザイク漏れ検知を実行する。
@@ -117,6 +119,8 @@ def run_combined_pipeline(
         output_path      : 結果JSON の出力先（None の場合は出力しない）
         run_face         : 顔パイプラインを実行するか
         run_genital      : 性器パイプラインを実行するか
+        box_threshold    : GroundingDino の box threshold
+        text_threshold   : GroundingDino の text threshold
 
     Returns:
         統合判定結果の dict
@@ -158,7 +162,12 @@ def run_combined_pipeline(
             try:
                 from genital_pipeline import run_pipeline as run_genital_pipeline
                 genital_result = run_genital_pipeline(
-                    video_path, cfg, dino_config, dino_checkpoint
+                    video_path,
+                    cfg,
+                    dino_config,
+                    dino_checkpoint,
+                    box_threshold=box_threshold,
+                    text_threshold=text_threshold,
                 )
                 print(f"  → 性器判定: {genital_result['verdict']}")
             except Exception as e:
@@ -216,7 +225,7 @@ def main():
     parser.add_argument("--output", default=None,   help="結果JSONの出力先")
     parser.add_argument(
         "--dino-checkpoint",
-        default=os.path.join(MODELS_DIR, "gdino", "dino_local_ft_ep4_best.pth"),
+        default=os.path.join(MODELS_DIR, "gdino", "v3ft_best.pth"),
         help="Fine-tuned GroundingDino チェックポイントのパス",
     )
     parser.add_argument(
@@ -229,6 +238,18 @@ def main():
     )
     parser.add_argument(
         "--genital-only", action="store_true", help="性器パイプラインのみ実行"
+    )
+    parser.add_argument(
+        "--box-threshold",
+        type=float,
+        default=0.18,
+        help="GroundingDino の box threshold",
+    )
+    parser.add_argument(
+        "--text-threshold",
+        type=float,
+        default=0.15,
+        help="GroundingDino の text threshold",
     )
     args = parser.parse_args()
 
@@ -244,6 +265,8 @@ def main():
         output_path      = args.output,
         run_face         = run_face,
         run_genital      = run_genital,
+        box_threshold    = args.box_threshold,
+        text_threshold   = args.text_threshold,
     )
 
     print(f"\n統合判定: {result['verdict']}")

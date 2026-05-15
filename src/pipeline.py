@@ -133,15 +133,19 @@ def detect_faces_hybrid(
 ) -> np.ndarray:
     """
     施策D: SCRFD-34g ハイブリッド検出。
-    まず 34g で検出し、2 顔以上のフレームでは 2.5g にフォールバックする。
+    まず 34g で検出し、複数顔が疑われるフレームでは 2.5g にフォールバックする。
     単顔フレームでは 34g が高精度であることが確認されている（総括文書§1.1）。
-    複数顔フレームでは 34g は 2 人目を見逃すため 2.5g を使用する。
+    複数顔フレームでは 34g は 2 人目を見逃すため、34g が 1 件でも 2.5g が複数件を返した場合は 2.5g を採用する。
     """
     dets_34g = detect_faces_scrfd(detector_34g, threshold_34g, bgr_image, cfg)
-    if len(dets_34g) <= 1:
-        return dets_34g  # 単顔または未検出: 34g が高精度
-    else:
-        return detect_faces_scrfd(detector_25g, threshold_25g, bgr_image, cfg)  # 複数顔: 2.5g
+    if len(dets_34g) == 1:
+        dets_25g = detect_faces_scrfd(detector_25g, threshold_25g, bgr_image, cfg)
+        if len(dets_25g) >= 2:
+            return dets_25g  # 34g が 2 人目を落としたケースを救済
+        return dets_34g  # 単顔: 34g が高精度
+    if len(dets_34g) >= 2:
+        return detect_faces_scrfd(detector_25g, threshold_25g, bgr_image, cfg)
+    return detect_faces_scrfd(detector_25g, threshold_25g, bgr_image, cfg)  # 34g未検出: 2.5gで救済
 
 
 def load_tracker(cfg: Config):

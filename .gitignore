@@ -17,6 +17,10 @@ models/segformer/
 output/
 tmp/
 
+# Docs and Tests (not pushed)
+docs/
+tests/
+
 # IDE
 .vscode/
 .idea/

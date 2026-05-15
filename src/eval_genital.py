@@ -53,14 +53,15 @@ GENITAL_LABELS = {"vagina_wide", "penis", "anus_insertion"}
 
 # デフォルトチェックポイント
 DEFAULT_DINO_CHECKPOINT = os.path.join(
-    MODELS_DIR, "gdino", "dino_local_ft_ep4_best.pth"
+    MODELS_DIR, "gdino", "v3ft_best.pth"
 )
 DEFAULT_DINO_CONFIG = os.path.join(MODELS_DIR, "gdino", "cfg_odvg.py")
-GENITAL_TEXT_PROMPT = "vagina . penis ."
-BOX_THRESHOLD = 0.20
+GENITAL_TEXT_PROMPT = "vagina . penis . anus ."
+BOX_THRESHOLD = 0.18
 TEXT_THRESHOLD = 0.15
 MIN_BOX_AREA_RATIO = 0.001
 MAX_BOX_AREA_RATIO = 0.30
+MAX_ASPECT_RATIO = 4.0      # 施策J: 極端に細長いBBoxを体部位FPとして棄却
 
 
 # ============================================================
@@ -201,6 +202,13 @@ def detect_genitals_frame(
             continue
         if box_area > w * h * MAX_BOX_AREA_RATIO:
             continue
+        # 施策J: アスペクト比フィルタ
+        bw = x2 - x1
+        bh = y2 - y1
+        if bw > 0 and bh > 0:
+            ar = max(bw / bh, bh / bw)
+            if ar > MAX_ASPECT_RATIO:
+                continue
         pred_mask[y1:y2, x1:x2] = 1
 
     return pred_mask
@@ -349,17 +357,15 @@ def main():
 
         results[subset_name] = subset_result
 
-    # 全サブセット合算
-    all_sub_metrics = []
-    for sub_res in results.values():
-        n = sub_res["n_evaluated"]
-        m = sub_res["metrics"]
-        # フレーム数で重み付けして再集計するため、フレームあたりのメトリクスを再収集はできないので
-        # サブセット単位の平均を単純平均
-        all_sub_metrics.append(m)
-
-    if all_sub_metrics:
-        overall = aggregate_metrics(all_sub_metrics)
+    # 全サブセット — 評価フレーム数で重み付け平均
+    total_eval = sum(r["n_evaluated"] for r in results.values())
+    if total_eval > 0:
+        overall = {}
+        for key in ("coverage", "precision", "iou"):
+            overall[key] = sum(
+                r["metrics"][key] * r["n_evaluated"]
+                for r in results.values()
+            ) / total_eval
     else:
         overall = {"coverage": 0.0, "precision": 0.0, "iou": 0.0}
 

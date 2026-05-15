@@ -60,24 +60,20 @@ from scorer import (
 )
 
 # --- デフォルトチェックポイントパス ---
-# 2026-05-04 ローカルFine-tuning済みチェックポイント（epoch 4, best mAP=0.0668）
-# ベース: dino_260430_checkpoint0002.pth → ローカルFT lr=5e-6, 15074train/2353val
+# v3FT best checkpoint (Epoch 7, mAP@[.5:.95]=0.4927, 246K train images)
 DEFAULT_DINO_CHECKPOINT = os.path.join(
-    MODELS_DIR, "gdino", "dino_local_ft_ep4_best.pth"
-)
-# フォールバック: GCP学習チェックポイント (epoch=2)
-_FALLBACK_DINO_CHECKPOINT = os.path.join(
-    MODELS_DIR, "gdino", "dino_260430_checkpoint0002.pth"
+    MODELS_DIR, "gdino", "v3ft_best.pth"
 )
 DEFAULT_DINO_CONFIG = os.path.join(MODELS_DIR, "gdino", "cfg_odvg.py")
-GENITAL_TEXT_PROMPT = "vagina . penis ."
-BOX_THRESHOLD = 0.20   # 閘値スイープで最適化済み（Coverage=0.484, Precision=0.480）
-TEXT_THRESHOLD = 0.15  # box_threshold=0.20 に合わせて調整
+GENITAL_TEXT_PROMPT = "vagina . penis . anus ."
+BOX_THRESHOLD = 0.18   # v3FTモデル最適値（testset_2603: P=0.653, C=0.558）
+TEXT_THRESHOLD = 0.15  # FTモデルでは実質無効だが互換性のため維持
 
 # 性器ROIの最小サイズ（フレーム面積に対する比率）
 # 0.001 = フレーム面積の 0.1% 以上の bbox のみ対象
 MIN_BOX_AREA_RATIO = 0.001
-MAX_BOX_AREA_RATIO = 0.30   # フレーム面積の 30% 超は体部位の巨大誤検出として棄却
+MAX_BOX_AREA_RATIO = 0.30   # フレーム面積の 30% 超は体部位の巨大FPとして棄却
+MAX_ASPECT_RATIO = 4.0      # 施策J: max(w/h, h/w) > 4.0 の極端に細長い検出を棄却
 
 
 def get_video_duration_minutes(video_path: str) -> float:
@@ -217,6 +213,14 @@ def detect_genitals(
         if box_area > w * h * MAX_BOX_AREA_RATIO:
             continue
 
+        # 施策J: アスペクト比フィルタ（極端に細長いBBoxは体部位FPとして棄却）
+        bw = x2 - x1
+        bh = y2 - y1
+        if bw > 0 and bh > 0:
+            ar = max(bw / bh, bh / bw)
+            if ar > MAX_ASPECT_RATIO:
+                continue
+
         results.append({
             "bbox": [x1, y1, x2, y2],
             "score": float(score),
@@ -259,6 +263,8 @@ def run_pipeline(
     dino_config: str,
     dino_checkpoint: str,
     output_path: Optional[str] = None,
+    box_threshold: float = BOX_THRESHOLD,
+    text_threshold: float = TEXT_THRESHOLD,
 ) -> dict:
     """
     性器モザイク漏れ検知メインパイプライン
@@ -269,6 +275,8 @@ def run_pipeline(
         dino_config: GroundingDino 設定ファイルのパス
         dino_checkpoint: Fine-tuned GroundingDino チェックポイントのパス
         output_path: 結果JSONの出力先（None の場合は出力しない）
+        box_threshold: GroundingDino の box threshold
+        text_threshold: GroundingDino の text threshold
 
     Returns:
         判定結果のdict（顔パイプラインと同フォーマット + check_type フィールド）
@@ -311,7 +319,13 @@ def run_pipeline(
             timestamp_sec = frame_idx * sec_per_frame
 
             # 性器検出（GroundingDino）
-            detections = detect_genitals(model, device, frame)
+            detections = detect_genitals(
+                model,
+                device,
+                frame,
+                box_threshold=box_threshold,
+                text_threshold=text_threshold,
+            )
 
             # --- モザイク解析 ---
             genital_results: List[FaceResult] = []
@@ -402,8 +416,8 @@ def run_pipeline(
                     "analyzer": "v1.0",
                 },
                 "thresholds": {
-                    "box_threshold": BOX_THRESHOLD,
-                    "text_threshold": TEXT_THRESHOLD,
+                    "box_threshold": box_threshold,
+                    "text_threshold": text_threshold,
                     "text_prompt": GENITAL_TEXT_PROMPT,
                     "laplacian_low": cfg.genital_laplacian_threshold_low,
                     "laplacian_high": cfg.genital_laplacian_threshold_high,
@@ -487,6 +501,7 @@ def main():
             dino_config=args.dino_config,
             dino_checkpoint=args.dino_checkpoint,
             output_path=args.output,
+            box_threshold=args.box_threshold,
         )
 
         # 終了コード: 0=PASS, 1=REVIEW, 2=FAIL
